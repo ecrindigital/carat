@@ -10,13 +10,25 @@ add_requires("glm 0.9.9", {alias = "glm"})
 add_requires("conan::spdlog/1.14.1", {alias = "spdlog"})
 add_requires("conan::catch2/3.6.0", {alias = "catch2"})
 add_requires("entt 3.13.1", {alias = "entt"})
+add_requires("taskflow", {alias = "taskflow"})
+add_requires("tracy", {alias = "tracy"})
+
+option("enable_profiling")
+    set_default(true)
+    set_showmenu(true)
+    set_description("Enable Tracy profiling")
+option_end()
 
 target("game_engine")
     set_kind("static")
     add_files("src/**.cpp")
     add_headerfiles("include/(game_engine/**.hpp)")
     add_includedirs("include", {public = true})
-    add_packages("glfw", "glad", "glm", "spdlog", "entt")
+    add_packages("glfw", "glad", "glm", "spdlog", "entt", "taskflow")
+    if has_config("enable_profiling") then
+        add_packages("tracy")
+        add_defines("TRACY_ENABLE")
+    end
     add_rules("plugin.cmake.autoreload")
 
 
@@ -24,7 +36,11 @@ target("game_engine_exe")
     set_kind("binary")
     add_deps("game_engine")
     add_files("src/main.cpp")
-    add_packages("glfw", "glad", "glm", "spdlog", "entt")
+    add_packages("glfw", "glad", "glm", "spdlog", "entt", "taskflow")
+    if has_config("enable_profiling") then
+        add_packages("tracy")
+        add_defines("TRACY_ENABLE")
+    end
 
 target("tests")
     set_kind("binary")

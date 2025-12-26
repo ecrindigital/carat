@@ -1,6 +1,7 @@
 #pragma once
 
 #include <game_engine/core/types.hpp>
+#include <game_engine/core/scheduler.hpp>
 #include <game_engine/infrastructure/ecs_manager.hpp>
 #include <game_engine/infrastructure/renderer.hpp>
 #include <game_engine/infrastructure/input_manager.hpp>
@@ -37,6 +38,7 @@ namespace game_engine::presentation {
         std::shared_ptr<infrastructure::EcsManager> m_ecs;
         std::shared_ptr<graphics::Renderer> m_renderer;
         std::shared_ptr<input::InputManager> m_inputManager;
+        core::Scheduler m_scheduler;
 
         float m_lastFrame = 0.0f;
     };

@@ -1,4 +1,6 @@
 #include <game_engine/presentation/game_loop.hpp>
+#include <game_engine/core/profiling.hpp>
+#include <game_engine/domain/system.hpp>
 #include <GLFW/glfw3.h>
 #include <glad/glad.h>
 #include <spdlog/spdlog.h>
@@ -78,6 +80,8 @@ namespace game_engine::presentation {
 
             glfwSwapBuffers(window);
             glfwPollEvents();
+
+            AXOLOTL_FRAME;
         }
 
         spdlog::info("Exiting main game loop");
@@ -85,9 +89,17 @@ namespace game_engine::presentation {
     }
 
     void GameLoop::update(float deltaTime) {
+        AXOLOTL_ZONE_NAMED("Update");
+
+        m_scheduler.clear();
+        m_scheduler.addSystem("MovementSystem", [this, deltaTime]() {
+            domain::systems::MovementSystem::update(*m_ecs, deltaTime);
+        });
+        m_scheduler.execute();
     }
 
     void GameLoop::render() {
+        AXOLOTL_ZONE_NAMED("Render");
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         m_renderer->render();
     }
