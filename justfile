@@ -1,17 +1,13 @@
 # Axolotl Engine
 
-# Production build & run
-run:
-    xmake f --enable_profiling=n -y -q && xmake -y -q && xmake run game_engine_exe
+run example="triangle":
+    xmake f --enable_profiling=n -y -q && xmake -y -q && xmake run {{example}}_example
 
-# Development mode (profiling + debug + watch)
-dev:
-    xmake f --enable_profiling=y -m debug -y -q && xmake -y && xmake run game_engine_exe
+dev example="triangle":
+    xmake f --enable_profiling=y -m debug -y -q && xmake -y && xmake run {{example}}_example
 
-# Tests
 test:
     xmake -y -q && xmake run tests
 
-# Clean
 clean:
     xmake clean --all
