@@ -1,42 +1,29 @@
 #pragma once
 
 #include <memory>
-
+#include <functional>
 #include "game_engine/core/types.hpp"
 
-struct GLFWwindow;
+namespace game_engine::infrastructure {
+    class Window;
+}
 
 namespace game_engine::input {
 
-    /**
-     * @class InputManager
-     * @brief Manages user input and input events.
-     *
-     * The InputManager class is responsible for processing user input,
-     * managing input states, and dispatching input events to other systems.
-     */
     class InputManager {
     public:
-        /**
-         * @brief Construct a new InputManager object.
-         */
-        InputManager();
+        using QuitCallback = std::function<void()>;
 
-        /**
-         * @brief Destroy the InputManager object.
-         */
+        InputManager();
         ~InputManager();
 
-        /**
-         * @brief Initialize the input manager with the given window.
-         * @param window Pointer to the GLFW window.
-         */
-        void initialize(GLFWwindow* window) const;
+        void initialize(infrastructure::Window* window);
+        void processInput();
 
-        /**
-         * @brief Process input events for the current frame.
-         */
-        void processInput() const;
+        void setQuitCallback(QuitCallback callback);
+
+        [[nodiscard]] bool isKeyPressed(int scancode) const;
+        [[nodiscard]] bool isKeyDown(int scancode) const;
 
     private:
         class Impl;

@@ -1,8 +1,8 @@
 #include "game_engine/infrastructure/renderer.hpp"
 
 #include <glad/glad.h>
-#include <GLFW/glfw3.h>
 #include <spdlog/spdlog.h>
+#include <array>
 
 namespace game_engine::graphics {
 
@@ -21,7 +21,7 @@ public:
 
         glGenVertexArrays(1, &m_vao);
         glGenBuffers(1, &m_vbo);
-        
+
         glBindVertexArray(m_vao);
 
         glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
@@ -76,9 +76,8 @@ Renderer::~Renderer() = default;
 core::Result Renderer::initialize() const {
     spdlog::info("Initializing Renderer");
 
-    if (!gladLoadGLLoader(reinterpret_cast<GLADloadproc>(glfwGetProcAddress))) {
-        spdlog::error("Failed to initialize GLAD");
-        return core::Result::Error;
+    if (!gladLoadGL()) {
+        spdlog::warn("GLAD already loaded or GL context issue - continuing anyway");
     }
 
     m_pImpl->createTriangle();

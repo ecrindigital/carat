@@ -1,7 +1,6 @@
 #include <game_engine/core/di_container.hpp>
 #include <game_engine/presentation/game_loop.hpp>
 #include <game_engine/infrastructure/ecs_manager.hpp>
-#include <game_engine/infrastructure/renderer.hpp>
 #include <game_engine/infrastructure/input_manager.hpp>
 #include <spdlog/spdlog.h>
 
@@ -10,14 +9,12 @@ int main() {
         game_engine::core::DIContainer container;
 
         container.registerType<game_engine::infrastructure::EcsManager>();
-        container.registerType<game_engine::graphics::Renderer>();
         container.registerType<game_engine::input::InputManager>();
 
         container.registerType<game_engine::presentation::GameLoop>(
             [](game_engine::core::DIContainer &c) {
                 return std::make_shared<game_engine::presentation::GameLoop>(
                     c.resolve<game_engine::infrastructure::EcsManager>(),
-                    c.resolve<game_engine::graphics::Renderer>(),
                     c.resolve<game_engine::input::InputManager>()
                 );
             }

@@ -12,6 +12,8 @@ add_requires("conan::catch2/3.6.0", {alias = "catch2"})
 add_requires("entt 3.13.1", {alias = "entt"})
 add_requires("taskflow", {alias = "taskflow"})
 add_requires("tracy", {alias = "tracy"})
+add_requires("imgui", {alias = "imgui", configs = {opengl3 = true}})
+add_requires("wgpu-native", {alias = "wgpu"})
 
 option("enable_profiling")
     set_default(true)
@@ -19,15 +21,28 @@ option("enable_profiling")
     set_description("Enable Tracy profiling")
 option_end()
 
+option("use_webgpu")
+    set_default(true)
+    set_showmenu(true)
+    set_description("Use WebGPU instead of OpenGL")
+option_end()
+
 target("game_engine")
     set_kind("static")
     add_files("src/**.cpp")
     add_headerfiles("include/(game_engine/**.hpp)")
     add_includedirs("include", {public = true})
-    add_packages("glfw", "glad", "glm", "spdlog", "entt", "taskflow")
+    add_packages("glfw", "glad", "glm", "spdlog", "entt", "taskflow", "imgui", "wgpu")
+    -- SDL3 via pkg-config (homebrew)
+    add_includedirs("/opt/homebrew/include", {public = true})
+    add_linkdirs("/opt/homebrew/lib", {public = true})
+    add_links("SDL3", {public = true})
     if has_config("enable_profiling") then
         add_packages("tracy")
         add_defines("TRACY_ENABLE")
+    end
+    if has_config("use_webgpu") then
+        add_defines("USE_WEBGPU")
     end
     add_rules("plugin.cmake.autoreload")
 
@@ -36,10 +51,16 @@ target("game_engine_exe")
     set_kind("binary")
     add_deps("game_engine")
     add_files("src/main.cpp")
-    add_packages("glfw", "glad", "glm", "spdlog", "entt", "taskflow")
+    add_packages("glfw", "glad", "glm", "spdlog", "entt", "taskflow", "imgui", "wgpu")
+    add_links("SDL3")
+    add_linkdirs("/opt/homebrew/lib")
+    add_rpathdirs("/opt/homebrew/lib")
     if has_config("enable_profiling") then
         add_packages("tracy")
         add_defines("TRACY_ENABLE")
+    end
+    if has_config("use_webgpu") then
+        add_defines("USE_WEBGPU")
     end
 
 target("tests")
