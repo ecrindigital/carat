@@ -2,6 +2,7 @@
 
 #include <functional>
 #include <memory>
+#include <string>
 #include <unordered_map>
 #include <typeindex>
 #include <stdexcept>
@@ -35,7 +36,7 @@ namespace game_engine::core {
         std::shared_ptr<T> resolve() {
             auto it = m_factories.find(typeid(T));
             if (it == m_factories.end()) {
-                throw std::runtime_error("Type not registered: " + std::string(typeid(T).name()));
+                throw std::runtime_error(std::string("Type not registered: ") + typeid(T).name());
             }
             return std::static_pointer_cast<T>(it->second(*this));
         }
