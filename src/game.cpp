@@ -13,6 +13,7 @@
 #include <game_engine/graphics/lighting.hpp>
 #include <game_engine/graphics/primitives.hpp>
 #include <game_engine/graphics/texture_loader.hpp>
+#include <game_engine/audio/audio_manager.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <spdlog/spdlog.h>
 #include <SDL3/SDL.h>
@@ -38,6 +39,7 @@ namespace game_engine {
         std::vector<std::unique_ptr<graphics::GlassMaterial>> ownedGlassMaterials;
         std::vector<std::unique_ptr<graphics::GPUTexture>> ownedTextures;
         std::unique_ptr<graphics::LightingManager> lighting;
+        std::unique_ptr<audio::AudioManager> audioManager;
 
         glm::vec3 cameraPosition{0.0f, 0.0f, 5.0f};
         glm::vec3 cameraTarget{0.0f, 0.0f, 0.0f};
@@ -350,6 +352,27 @@ namespace game_engine {
         return m_pImpl->lighting.get();
     }
 
+    audio::AudioManager* Game::getAudio() {
+        return m_pImpl->audioManager.get();
+    }
+
+    audio::AudioClip* Game::loadAudio(const std::string& path) {
+        if (!m_pImpl->audioManager) return nullptr;
+        return m_pImpl->audioManager->loadClip(path);
+    }
+
+    void Game::playSound(audio::AudioClip* clip, float volume) {
+        if (m_pImpl->audioManager && clip) {
+            m_pImpl->audioManager->play(clip, volume);
+        }
+    }
+
+    void Game::playSound(const std::string& path, float volume) {
+        if (m_pImpl->audioManager) {
+            m_pImpl->audioManager->playOneShot(path, volume);
+        }
+    }
+
     bool Game::isKeyPressed(int scancode) const {
         const bool* keyState = SDL_GetKeyboardState(nullptr);
         return keyState && keyState[scancode];
@@ -391,6 +414,11 @@ namespace game_engine {
         m_pImpl->systemRegistry = std::make_unique<core::SystemRegistry>(
             m_pImpl->container, m_pImpl->scheduler
         );
+
+        m_pImpl->audioManager = std::make_unique<audio::AudioManager>();
+        if (m_pImpl->audioManager->initialize() != core::Result::Success) {
+            spdlog::warn("Failed to initialize audio (continuing without audio)");
+        }
 
         auto* shaderRegistry = m_pImpl->renderer->getShaderRegistry();
         auto modelLayout = shaderRegistry->getModelBindGroupLayout();

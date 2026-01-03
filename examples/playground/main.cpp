@@ -3,6 +3,7 @@
 #include <game_engine/graphics/material.hpp>
 #include <game_engine/graphics/gpu_texture.hpp>
 #include <game_engine/graphics/lighting.hpp>
+#include <game_engine/audio/audio_manager.hpp>
 #include <SDL3/SDL_scancode.h>
 #include <spdlog/spdlog.h>
 #include <vector>
@@ -23,7 +24,8 @@ namespace {
     constexpr float ENEMY_SPACING_X = 1.4f;
     constexpr float ENEMY_SPACING_Y = 1.0f;
 
-    const std::string ASSETS_PATH = "examples/playground/assets/textures/";
+    const std::string TEXTURES_PATH = "examples/playground/assets/textures/";
+    const std::string SOUNDS_PATH = "examples/playground/assets/sounds/";
 }
 
 struct Entity {
@@ -87,11 +89,17 @@ int main() {
             return 1;
         }
 
-        auto* playerTex = game.loadTexture(ASSETS_PATH + "player.png");
-        auto* enemyBossTex = game.loadTexture(ASSETS_PATH + "enemy_boss.png");
-        auto* enemyRedTex = game.loadTexture(ASSETS_PATH + "enemy_red.png");
-        auto* enemyYellowTex = game.loadTexture(ASSETS_PATH + "enemy_yellow.png");
-        auto* enemyGreenTex = game.loadTexture(ASSETS_PATH + "enemy_green.png");
+        auto* playerTex = game.loadTexture(TEXTURES_PATH + "player.png");
+        auto* enemyBossTex = game.loadTexture(TEXTURES_PATH + "enemy_boss.png");
+        auto* enemyRedTex = game.loadTexture(TEXTURES_PATH + "enemy_red.png");
+        auto* enemyYellowTex = game.loadTexture(TEXTURES_PATH + "enemy_yellow.png");
+        auto* enemyGreenTex = game.loadTexture(TEXTURES_PATH + "enemy_green.png");
+
+        auto* sfxShoot = game.loadAudio(SOUNDS_PATH + "siclone_shoot.wav");
+        auto* sfxExplosion = game.loadAudio(SOUNDS_PATH + "siclone_explosion_small.wav");
+        auto* sfxSpawn = game.loadAudio(SOUNDS_PATH + "siclone_spawn.wav");
+        auto* sfxDeath = game.loadAudio(SOUNDS_PATH + "siclone_death.wav");
+        auto* sfxBonus = game.loadAudio(SOUNDS_PATH + "siclone_bonus.wav");
 
         auto* playerMat = game.createSpriteMaterial(playerTex);
 
@@ -177,6 +185,8 @@ int main() {
         spdlog::info("Scoring: Top row = 40 pts, Bottom = 10 pts");
         spdlog::info("=============================");
 
+        game.playSound(sfxSpawn, 0.7f);
+
         game.onUpdate([&](float dt) {
             state.time += dt;
 
@@ -200,6 +210,7 @@ int main() {
                 glm::vec3 spawnPos = state.player.position;
                 spawnPos.y += state.player.size.y / 2.0f + 0.3f;
                 spawnProjectile(spawnPos);
+                game.playSound(sfxShoot, 0.5f);
                 state.player.shootCooldown = SHOOT_COOLDOWN;
             }
 
@@ -252,6 +263,7 @@ int main() {
 
                         if (enemy.position.y < -WORLD_HEIGHT / 2.0f + 2.0f) {
                             state.gameOver = true;
+                            game.playSound(sfxDeath, 0.8f);
                             spdlog::info("=============================");
                             spdlog::info("       GAME OVER!");
                             spdlog::info("   Final Score: {}", state.score);
@@ -277,6 +289,7 @@ int main() {
 
                         int points = (ENEMY_ROWS - enemy.row) * 10;
                         state.score += points;
+                        game.playSound(sfxExplosion, 0.6f);
                         spdlog::info("HIT! +{} pts | Total: {}", points, state.score);
                         break;
                     }
@@ -290,6 +303,7 @@ int main() {
             if (!anyActive) {
                 state.gameOver = true;
                 state.victory = true;
+                game.playSound(sfxBonus, 0.8f);
                 spdlog::info("=============================");
                 spdlog::info("       VICTORY!");
                 spdlog::info("   Final Score: {}", state.score);

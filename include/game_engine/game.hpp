@@ -19,6 +19,11 @@ namespace game_engine {
         class LightingManager;
     }
 
+    namespace audio {
+        class AudioManager;
+        class AudioClip;
+    }
+
     namespace infrastructure {
         class EcsManager;
     }
@@ -84,6 +89,11 @@ namespace game_engine {
         infrastructure::EcsManager& ecs();
         graphics::WGPURenderer* getRenderer();
         graphics::LightingManager* getLighting();
+        audio::AudioManager* getAudio();
+
+        audio::AudioClip* loadAudio(const std::string& path);
+        void playSound(audio::AudioClip* clip, float volume = 1.0f);
+        void playSound(const std::string& path, float volume = 1.0f);
 
         [[nodiscard]] bool isKeyPressed(int scancode) const;
 

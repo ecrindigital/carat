@@ -89,6 +89,11 @@ axolotl_engine/
 | Parallelism | Taskflow |
 | Testing | Catch2 |
 
+## Credits
+
+### Space Invaders Example
+- **SFX**: [krial](https://opengameart.org/users/krial) - Siclone sound effects
+
 ## License
 
 MIT
