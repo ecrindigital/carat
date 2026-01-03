@@ -12,7 +12,7 @@ namespace game_engine::core {
     public:
         template<typename T>
         void registerType() {
-            registerType<T>([](DIContainer &container) {
+            registerType<T>([](DIContainer&) {
                 return std::make_shared<T>();
             });
         }
@@ -26,7 +26,7 @@ namespace game_engine::core {
 
         template<typename T>
         void registerSingleton() {
-            registerSingleton<T>([](DIContainer &container) {
+            registerSingleton<T>([](DIContainer&) {
                 return std::make_shared<T>();
             });
         }
@@ -41,7 +41,7 @@ namespace game_engine::core {
         template<typename T, typename Impl>
         void registerInterface() {
             static_assert(std::is_base_of_v<T, Impl>, "Impl must inherit from T");
-            registerType<T>([this](DIContainer &container) {
+            registerType<T>([this](DIContainer&) {
                 return std::static_pointer_cast<T>(resolve<Impl>());
             });
         }

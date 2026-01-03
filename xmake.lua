@@ -47,6 +47,10 @@ target("game_engine")
     if has_config("use_webgpu") then
         add_defines("USE_WEBGPU")
     end
+    if has_config("enable_coverage") then
+        add_cxflags("-fprofile-instr-generate", "-fcoverage-mapping")
+        add_ldflags("-fprofile-instr-generate", "-fcoverage-mapping")
+    end
     add_rules("plugin.cmake.autoreload")
 
 
@@ -99,12 +103,22 @@ target("playground_example")
         add_defines("USE_WEBGPU")
     end
 
+option("enable_coverage")
+    set_default(false)
+    set_showmenu(true)
+    set_description("Enable code coverage")
+option_end()
+
 target("tests")
     set_kind("binary")
     add_deps("game_engine")
     add_files("tests/**.cpp")
     add_includedirs("tests", "include")
-    add_packages("catch2", "glfw", "glad", "glm", "spdlog")
+    add_packages("catch2", "glfw", "glad", "glm", "spdlog", "entt", "taskflow")
+    if has_config("enable_coverage") then
+        add_cxflags("-fprofile-instr-generate", "-fcoverage-mapping")
+        add_ldflags("-fprofile-instr-generate", "-fcoverage-mapping")
+    end
 
 on_load(function (target)
     local main_content = [[

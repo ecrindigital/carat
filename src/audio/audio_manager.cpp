@@ -17,7 +17,7 @@ namespace game_engine::audio {
 
     AudioClip::AudioClip() : m_pImpl(std::make_unique<Impl>()) {}
     AudioClip::~AudioClip() {
-        if (m_pImpl->buffer) {
+        if (m_pImpl && m_pImpl->buffer) {
             SDL_free(m_pImpl->buffer);
         }
     }
@@ -85,6 +85,7 @@ namespace game_engine::audio {
     }
 
     void AudioManager::shutdown() {
+        if (!m_pImpl) return;
         if (m_pImpl->deviceId != 0) {
             SDL_CloseAudioDevice(m_pImpl->deviceId);
             m_pImpl->deviceId = 0;
