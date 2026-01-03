@@ -52,6 +52,13 @@ namespace game_engine::graphics {
         return material;
     }
 
+    std::unique_ptr<Material> Material::createGlow(const glm::vec4& color) {
+        auto material = std::make_unique<Material>();
+        material->m_pImpl->shader = BuiltinShader::Glow;
+        material->m_pImpl->data.color = color;
+        return material;
+    }
+
     void Material::setColor(const glm::vec4& color) {
         m_pImpl->data.color = color;
         markDirty();

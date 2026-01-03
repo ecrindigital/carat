@@ -83,6 +83,8 @@ fn main() -> @location(0) vec4<f32> {
         m_viewMatrix = glm::mat4(1.0f);
         updateCameraUniforms();
 
+        createDepthTexture(windowSize.x, windowSize.y);
+
         constexpr std::array<float, 9> legacyVertices = {
             -0.5f, -0.5f, 0.0f,
              0.5f, -0.5f, 0.0f,
@@ -116,6 +118,52 @@ fn main() -> @location(0) vec4<f32> {
         return core::Result::Success;
     }
 
+    void WGPURenderer::createDepthTexture(uint32_t width, uint32_t height) {
+        if (m_depthTextureView) {
+            wgpuTextureViewRelease(m_depthTextureView);
+            m_depthTextureView = nullptr;
+        }
+        if (m_depthTexture) {
+            wgpuTextureDestroy(m_depthTexture);
+            wgpuTextureRelease(m_depthTexture);
+            m_depthTexture = nullptr;
+        }
+
+        WGPUTextureDescriptor depthTextureDesc = {};
+        depthTextureDesc.label = "Depth Texture";
+        depthTextureDesc.size.width = width;
+        depthTextureDesc.size.height = height;
+        depthTextureDesc.size.depthOrArrayLayers = 1;
+        depthTextureDesc.mipLevelCount = 1;
+        depthTextureDesc.sampleCount = 1;
+        depthTextureDesc.dimension = WGPUTextureDimension_2D;
+        depthTextureDesc.format = WGPUTextureFormat_Depth24Plus;
+        depthTextureDesc.usage = WGPUTextureUsage_RenderAttachment;
+
+        m_depthTexture = wgpuDeviceCreateTexture(m_device->getDevice(), &depthTextureDesc);
+        if (!m_depthTexture) {
+            spdlog::error("Failed to create depth texture");
+            return;
+        }
+
+        WGPUTextureViewDescriptor depthViewDesc = {};
+        depthViewDesc.format = WGPUTextureFormat_Depth24Plus;
+        depthViewDesc.dimension = WGPUTextureViewDimension_2D;
+        depthViewDesc.baseMipLevel = 0;
+        depthViewDesc.mipLevelCount = 1;
+        depthViewDesc.baseArrayLayer = 0;
+        depthViewDesc.arrayLayerCount = 1;
+        depthViewDesc.aspect = WGPUTextureAspect_DepthOnly;
+
+        m_depthTextureView = wgpuTextureCreateView(m_depthTexture, &depthViewDesc);
+        if (!m_depthTextureView) {
+            spdlog::error("Failed to create depth texture view");
+            return;
+        }
+
+        spdlog::info("Depth texture created: {}x{}", width, height);
+    }
+
     void WGPURenderer::shutdown() {
         m_meshes.clear();
         m_cameraBindGroup.reset();
@@ -123,6 +171,17 @@ fn main() -> @location(0) vec4<f32> {
         m_legacyPipeline.reset();
         m_legacyVertexBuffer.reset();
         m_shaderRegistry.reset();
+
+        if (m_depthTextureView) {
+            wgpuTextureViewRelease(m_depthTextureView);
+            m_depthTextureView = nullptr;
+        }
+        if (m_depthTexture) {
+            wgpuTextureDestroy(m_depthTexture);
+            wgpuTextureRelease(m_depthTexture);
+            m_depthTexture = nullptr;
+        }
+
         m_device.reset();
     }
 
@@ -170,7 +229,7 @@ fn main() -> @location(0) vec4<f32> {
         colorAttachment.view = textureView;
         colorAttachment.loadOp = WGPULoadOp_Clear;
         colorAttachment.storeOp = WGPUStoreOp_Store;
-        colorAttachment.clearValue = {0.2, 0.3, 0.3, 1.0};
+        colorAttachment.clearValue = {0.0, 0.0, 0.0, 1.0};
 
         WGPURenderPassDescriptor renderPassDesc = {};
         renderPassDesc.colorAttachmentCount = 1;
@@ -187,6 +246,7 @@ fn main() -> @location(0) vec4<f32> {
         WGPUCommandBufferDescriptor cmdBufferDesc = {};
         WGPUCommandBuffer cmdBuffer = wgpuCommandEncoderFinish(encoder, &cmdBufferDesc);
         wgpuQueueSubmit(queue, 1, &cmdBuffer);
+        m_device->poll(false);
 
         m_device->present();
 
@@ -194,7 +254,6 @@ fn main() -> @location(0) vec4<f32> {
         wgpuRenderPassEncoderRelease(renderPass);
         wgpuCommandEncoderRelease(encoder);
         wgpuTextureViewRelease(textureView);
-        wgpuTextureRelease(surfaceTexture.texture);
     }
 
     void WGPURenderer::renderMeshes() {
@@ -233,11 +292,21 @@ fn main() -> @location(0) vec4<f32> {
         colorAttachment.view = textureView;
         colorAttachment.loadOp = WGPULoadOp_Clear;
         colorAttachment.storeOp = WGPUStoreOp_Store;
-        colorAttachment.clearValue = {0.2, 0.3, 0.3, 1.0};
+        colorAttachment.clearValue = {0.0, 0.0, 0.0, 1.0};
+
+        WGPURenderPassDepthStencilAttachment depthStencilAttachment = {};
+        depthStencilAttachment.view = m_depthTextureView;
+        depthStencilAttachment.depthLoadOp = WGPULoadOp_Clear;
+        depthStencilAttachment.depthStoreOp = WGPUStoreOp_Store;
+        depthStencilAttachment.depthClearValue = 1.0f;
+        depthStencilAttachment.stencilLoadOp = WGPULoadOp_Clear;
+        depthStencilAttachment.stencilStoreOp = WGPUStoreOp_Discard;
+        depthStencilAttachment.stencilClearValue = 0;
 
         WGPURenderPassDescriptor renderPassDesc = {};
         renderPassDesc.colorAttachmentCount = 1;
         renderPassDesc.colorAttachments = &colorAttachment;
+        renderPassDesc.depthStencilAttachment = m_depthTextureView ? &depthStencilAttachment : nullptr;
 
         WGPURenderPassEncoder renderPass = wgpuCommandEncoderBeginRenderPass(encoder, &renderPassDesc);
 
@@ -284,6 +353,7 @@ fn main() -> @location(0) vec4<f32> {
         WGPUCommandBufferDescriptor cmdBufferDesc = {};
         WGPUCommandBuffer cmdBuffer = wgpuCommandEncoderFinish(encoder, &cmdBufferDesc);
         wgpuQueueSubmit(queue, 1, &cmdBuffer);
+        m_device->poll(false);
 
         m_device->present();
 
@@ -291,7 +361,6 @@ fn main() -> @location(0) vec4<f32> {
         wgpuRenderPassEncoderRelease(renderPass);
         wgpuCommandEncoderRelease(encoder);
         wgpuTextureViewRelease(textureView);
-        wgpuTextureRelease(surfaceTexture.texture);
     }
 
     void WGPURenderer::updateCameraUniforms() {

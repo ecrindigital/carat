@@ -40,6 +40,7 @@ namespace game_engine::graphics {
         [[nodiscard]] WGPUInstance getInstance() const;
 
         void present();
+        void poll(bool wait = false);
 
     private:
         class Impl;

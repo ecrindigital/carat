@@ -4,6 +4,7 @@
 #include <game_engine/graphics/gpu_device.hpp>
 #include <game_engine/graphics/gpu_pipeline.hpp>
 #include <game_engine/graphics/gpu_buffer.hpp>
+#include <webgpu/webgpu.h>
 #include <glm/glm.hpp>
 #include <memory>
 #include <vector>
@@ -60,6 +61,10 @@ namespace game_engine::graphics {
         bool m_useLegacyMode = true;
 
         infrastructure::Window* m_window = nullptr;
+
+        WGPUTexture m_depthTexture = nullptr;
+        WGPUTextureView m_depthTextureView = nullptr;
+        void createDepthTexture(uint32_t width, uint32_t height);
 
         void renderLegacy();
         void renderMeshes();

@@ -1,6 +1,7 @@
 #include <game_engine/graphics/gpu_device.hpp>
 #include <game_engine/infrastructure/window.hpp>
 #include <webgpu/webgpu.h>
+#include <webgpu/wgpu.h> 
 #include <spdlog/spdlog.h>
 #include <SDL3/SDL.h>
 
@@ -188,6 +189,12 @@ namespace game_engine::graphics {
 
     void GPUDevice::present() {
         wgpuSurfacePresent(m_pImpl->surface);
+    }
+
+    void GPUDevice::poll(bool wait) {
+        if (m_pImpl->device) {
+            wgpuDevicePoll(m_pImpl->device, wait, nullptr);
+        }
     }
 
 } // namespace game_engine::graphics

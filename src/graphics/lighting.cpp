@@ -40,18 +40,45 @@ namespace game_engine::graphics {
         m_pImpl->dirty = true;
     }
 
-    void LightingManager::addPointLight(const glm::vec3& position, const glm::vec3& color, float intensity, float range) {
+    int LightingManager::addPointLight(const glm::vec3& position, const glm::vec3& color, float intensity, float range) {
         if (m_pImpl->data.numPointLights >= 8) {
             spdlog::warn("Maximum point lights (8) reached");
-            return;
+            return -1;
         }
 
-        auto& light = m_pImpl->data.pointLights[m_pImpl->data.numPointLights];
+        int index = static_cast<int>(m_pImpl->data.numPointLights);
+        auto& light = m_pImpl->data.pointLights[index];
         light.position = position;
         light.color = color;
         light.intensity = intensity;
         light.range = range;
         m_pImpl->data.numPointLights++;
+        m_pImpl->dirty = true;
+        return index;
+    }
+
+    void LightingManager::updatePointLight(int index, const glm::vec3& position) {
+        if (index < 0 || index >= static_cast<int>(m_pImpl->data.numPointLights)) return;
+        m_pImpl->data.pointLights[index].position = position;
+        m_pImpl->dirty = true;
+    }
+
+    void LightingManager::updatePointLight(int index, const glm::vec3& position, const glm::vec3& color, float intensity, float range) {
+        if (index < 0 || index >= static_cast<int>(m_pImpl->data.numPointLights)) return;
+        auto& light = m_pImpl->data.pointLights[index];
+        light.position = position;
+        light.color = color;
+        light.intensity = intensity;
+        light.range = range;
+        m_pImpl->dirty = true;
+    }
+
+    void LightingManager::removePointLight(int index) {
+        if (index < 0 || index >= static_cast<int>(m_pImpl->data.numPointLights)) return;
+        for (uint32_t i = static_cast<uint32_t>(index); i < m_pImpl->data.numPointLights - 1; ++i) {
+            m_pImpl->data.pointLights[i] = m_pImpl->data.pointLights[i + 1];
+        }
+        m_pImpl->data.numPointLights--;
         m_pImpl->dirty = true;
     }
 

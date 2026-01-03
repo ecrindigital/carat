@@ -57,8 +57,11 @@ namespace game_engine {
         graphics::Material* createMaterial();
         graphics::Material* createUnlitMaterial(const glm::vec4& color);
         graphics::Material* createSpriteMaterial(graphics::GPUTexture* texture, const glm::vec4& tint = glm::vec4(1.0f));
+        graphics::Material* createGlowMaterial(const glm::vec4& color);
         graphics::PBRMaterial* createPBRMaterial();
         graphics::GlassMaterial* createGlassMaterial();
+
+        graphics::GPUTexture* loadTexture(const std::string& path);
 
         void addMesh(graphics::Mesh* mesh);
         void removeMesh(graphics::Mesh* mesh);

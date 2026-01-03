@@ -50,7 +50,10 @@ namespace game_engine::graphics {
         void setCameraPosition(const glm::vec3& position);
 
         void addDirectionalLight(const glm::vec3& direction, const glm::vec3& color, float intensity = 1.0f);
-        void addPointLight(const glm::vec3& position, const glm::vec3& color, float intensity = 1.0f, float range = 10.0f);
+        int addPointLight(const glm::vec3& position, const glm::vec3& color, float intensity = 1.0f, float range = 10.0f);
+        void updatePointLight(int index, const glm::vec3& position);
+        void updatePointLight(int index, const glm::vec3& position, const glm::vec3& color, float intensity, float range);
+        void removePointLight(int index);
         void clearLights();
 
         [[nodiscard]] const LightingData& getData() const;

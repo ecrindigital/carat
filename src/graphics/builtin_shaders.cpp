@@ -62,7 +62,8 @@ struct ModelUniforms {
 
 struct VertexInput {
     @location(0) position: vec3<f32>,
-    @location(1) uv: vec2<f32>,
+    @location(1) normal: vec3<f32>,
+    @location(2) uv: vec2<f32>,
 }
 
 struct VertexOutput {
@@ -83,6 +84,11 @@ fn main(in: VertexInput) -> VertexOutput {
 )";
 
     constexpr std::string_view UNLIT_TEXTURED_FRAGMENT = R"(
+struct VertexOutput {
+    @builtin(position) position: vec4<f32>,
+    @location(0) uv: vec2<f32>,
+}
+
 struct MaterialUniforms {
     color: vec4<f32>,
     uv_offset: vec2<f32>,
@@ -110,11 +116,6 @@ fn main(in: VertexOutput) -> @location(0) vec4<f32> {
     let tex_color = textureSample(tex, tex_sampler, uv);
     return tex_color * material.color;
 }
-
-struct VertexOutput {
-    @builtin(position) position: vec4<f32>,
-    @location(0) uv: vec2<f32>,
-}
 )";
 
     constexpr std::string_view SPRITE_VERTEX = R"(
@@ -129,7 +130,8 @@ struct ModelUniforms {
 
 struct VertexInput {
     @location(0) position: vec3<f32>,
-    @location(1) uv: vec2<f32>,
+    @location(1) normal: vec3<f32>,
+    @location(2) uv: vec2<f32>,
 }
 
 struct VertexOutput {
@@ -532,25 +534,101 @@ fn main(in: VertexOutput) -> @location(0) vec4<f32> {
 }
 )";
 
+    constexpr std::string_view GLOW_VERTEX = R"(
+struct CameraUniforms {
+    view: mat4x4<f32>,
+    projection: mat4x4<f32>,
+}
+
+struct ModelUniforms {
+    model: mat4x4<f32>,
+}
+
+struct VertexInput {
+    @location(0) position: vec3<f32>,
+    @location(1) normal: vec3<f32>,
+    @location(2) uv: vec2<f32>,
+}
+
+struct VertexOutput {
+    @builtin(position) position: vec4<f32>,
+    @location(0) uv: vec2<f32>,
+    @location(1) world_position: vec3<f32>,
+}
+
+@group(0) @binding(0) var<uniform> camera: CameraUniforms;
+@group(1) @binding(0) var<uniform> model: ModelUniforms;
+
+@vertex
+fn main(in: VertexInput) -> VertexOutput {
+    var out: VertexOutput;
+    let world_pos = model.model * vec4<f32>(in.position, 1.0);
+    out.world_position = world_pos.xyz;
+    out.position = camera.projection * camera.view * world_pos;
+    out.uv = in.uv;
+    return out;
+}
+)";
+
+    constexpr std::string_view GLOW_FRAGMENT = R"(
+struct VertexOutput {
+    @builtin(position) position: vec4<f32>,
+    @location(0) uv: vec2<f32>,
+    @location(1) world_position: vec3<f32>,
+}
+
+struct MaterialUniforms {
+    color: vec4<f32>,
+    uv_offset: vec2<f32>,
+    uv_scale: vec2<f32>,
+    flip_x: u32,
+    flip_y: u32,
+    _padding: vec2<f32>,
+}
+
+@group(2) @binding(0) var<uniform> material: MaterialUniforms;
+
+@fragment
+fn main(in: VertexOutput) -> @location(0) vec4<f32> {
+    let center = vec2<f32>(0.5, 0.5);
+    let dist = distance(in.uv, center) * 2.0;
+
+    let core_glow = 1.0 - smoothstep(0.0, 0.3, dist);
+    let mid_glow = (1.0 - smoothstep(0.0, 0.6, dist)) * 0.6;
+    let outer_glow = (1.0 - smoothstep(0.0, 1.0, dist)) * 0.3;
+
+    let glow_intensity = core_glow + mid_glow + outer_glow;
+
+    let final_color = material.color.rgb * glow_intensity;
+    let final_alpha = glow_intensity * material.color.a;
+
+    if (final_alpha < 0.01) {
+        discard;
+    }
+
+    return vec4<f32>(final_color, final_alpha);
+}
+)";
+
     static const ShaderDefinition SHADER_DEFINITIONS[] = {
         {
             UNLIT_VERTEX,
             UNLIT_FRAGMENT,
-            VertexLayoutType::Position,
+            VertexLayoutType::PositionNormalUV,
             true,
             false
         },
         {
             UNLIT_TEXTURED_VERTEX,
             UNLIT_TEXTURED_FRAGMENT,
-            VertexLayoutType::PositionUV,
+            VertexLayoutType::PositionNormalUV,
             true,
             true
         },
         {
             SPRITE_VERTEX,
             SPRITE_FRAGMENT,
-            VertexLayoutType::PositionUV,
+            VertexLayoutType::PositionNormalUV,
             true,
             true
         },
@@ -571,6 +649,13 @@ fn main(in: VertexOutput) -> @location(0) vec4<f32> {
         {
             GLASS_VERTEX,
             GLASS_FRAGMENT,
+            VertexLayoutType::PositionNormalUV,
+            true,
+            false
+        },
+        {
+            GLOW_VERTEX,
+            GLOW_FRAGMENT,
             VertexLayoutType::PositionNormalUV,
             true,
             false

@@ -1,24 +1,29 @@
 #include <game_engine/game.hpp>
 #include <game_engine/graphics/mesh.hpp>
 #include <game_engine/graphics/material.hpp>
+#include <game_engine/graphics/gpu_texture.hpp>
+#include <game_engine/graphics/lighting.hpp>
 #include <SDL3/SDL_scancode.h>
 #include <spdlog/spdlog.h>
 #include <vector>
 #include <algorithm>
+#include <cmath>
 
 namespace {
     constexpr float WORLD_HEIGHT = 12.0f;
     constexpr float WORLD_WIDTH = 16.0f;
     constexpr float PLAYER_SPEED = 8.0f;
-    constexpr float PROJECTILE_SPEED = 15.0f;
-    constexpr float ENEMY_SPEED = 2.0f;
+    constexpr float PROJECTILE_SPEED = 18.0f;
+    constexpr float ENEMY_SPEED = 2.5f;
     constexpr float ENEMY_DROP = 0.5f;
-    constexpr float SHOOT_COOLDOWN = 0.3f;
+    constexpr float SHOOT_COOLDOWN = 0.2f;
 
     constexpr int ENEMY_ROWS = 4;
     constexpr int ENEMY_COLS = 8;
     constexpr float ENEMY_SPACING_X = 1.4f;
     constexpr float ENEMY_SPACING_Y = 1.0f;
+
+    const std::string ASSETS_PATH = "examples/playground/assets/textures/";
 }
 
 struct Entity {
@@ -46,10 +51,14 @@ struct Player : Entity {
     float shootCooldown = 0.0f;
 };
 
-struct Enemy : Entity {};
+struct Enemy : Entity {
+    int row = 0;
+};
 
 struct Projectile : Entity {
     float velocity = PROJECTILE_SPEED;
+    game_engine::graphics::Mesh* glowMesh = nullptr;
+    int lightIndex = -1;
 };
 
 struct GameState {
@@ -61,44 +70,77 @@ struct GameState {
     int score = 0;
     bool gameOver = false;
     bool victory = false;
+    float time = 0.0f;
 };
 
 int main() {
     try {
-        game_engine::Game game("Space Invaders Playground", 800, 600);
+        game_engine::Game game("Space Invaders 2D", 1024, 768);
 
-        game.setOrthographic(WORLD_HEIGHT, -1.0f, 10.0f);
-        game.setCameraPosition({0.0f, 0.0f, 5.0f});
+        game.setOrthographic(WORLD_HEIGHT, 0.1f, 100.0f);
+        game.setCameraPosition({0.0f, 0.0f, 10.0f});
         game.setCameraLookAt({0.0f, 0.0f, 0.0f});
         game.setCameraUp({0.0f, 1.0f, 0.0f});
 
-        auto* playerMat = game.createUnlitMaterial({0.2f, 0.8f, 0.3f, 1.0f});   
-        auto* enemyMat = game.createUnlitMaterial({0.9f, 0.2f, 0.2f, 1.0f});    
-        auto* projectileMat = game.createUnlitMaterial({1.0f, 1.0f, 0.0f, 1.0f});
+        if (game.initialize() != game_engine::core::Result::Success) {
+            spdlog::error("Failed to initialize game");
+            return 1;
+        }
+
+        auto* playerTex = game.loadTexture(ASSETS_PATH + "player.png");
+        auto* enemyBossTex = game.loadTexture(ASSETS_PATH + "enemy_boss.png");
+        auto* enemyRedTex = game.loadTexture(ASSETS_PATH + "enemy_red.png");
+        auto* enemyYellowTex = game.loadTexture(ASSETS_PATH + "enemy_yellow.png");
+        auto* enemyGreenTex = game.loadTexture(ASSETS_PATH + "enemy_green.png");
+
+        auto* playerMat = game.createSpriteMaterial(playerTex);
+
+        std::vector<game_engine::graphics::Material*> enemyMats;
+        game_engine::graphics::GPUTexture* enemyTextures[] = {
+            enemyBossTex,    
+            enemyRedTex,     
+            enemyYellowTex,  
+            enemyGreenTex    
+        };
+        for (int i = 0; i < ENEMY_ROWS; ++i) {
+            enemyMats.push_back(game.createSpriteMaterial(enemyTextures[i]));
+        }
+
+        auto* projectileMat = game.createUnlitMaterial({1.0f, 1.0f, 0.5f, 1.0f});
+        auto* glowMat = game.createGlowMaterial({1.0f, 0.9f, 0.3f, 1.0f});
+
+        game.setAmbientLight({0.1f, 0.1f, 0.15f}, 1.0f);
+
+        auto* bgMat = game.createUnlitMaterial({0.02f, 0.02f, 0.05f, 1.0f});
+        auto* background = game.createQuad(30.0f, 24.0f);
+        background->setMaterial(bgMat);
+        background->setPosition({0.0f, 0.0f, -5.0f});
+        game.addMesh(background);
 
         GameState state;
 
-        state.player.mesh = game.createQuad(1.0f, 0.6f);
+        state.player.mesh = game.createQuad(1.2f, 1.2f);
         state.player.mesh->setMaterial(playerMat);
-        state.player.position = {0.0f, -WORLD_HEIGHT / 2.0f + 1.0f, 0.0f};
-        state.player.size = {1.0f, 0.6f};
+        state.player.position = {0.0f, -WORLD_HEIGHT / 2.0f + 1.5f, 0.0f};
+        state.player.size = {1.0f, 1.0f};
         state.player.updateMeshPosition();
         game.addMesh(state.player.mesh);
 
         float startX = -(ENEMY_COLS - 1) * ENEMY_SPACING_X / 2.0f;
-        float startY = WORLD_HEIGHT / 2.0f - 2.0f;
+        float startY = WORLD_HEIGHT / 2.0f - 2.5f;
 
         for (int row = 0; row < ENEMY_ROWS; ++row) {
             for (int col = 0; col < ENEMY_COLS; ++col) {
                 Enemy enemy;
-                enemy.mesh = game.createQuad(0.8f, 0.6f);
-                enemy.mesh->setMaterial(enemyMat);
+                enemy.row = row;
+                enemy.mesh = game.createQuad(1.0f, 1.0f);
+                enemy.mesh->setMaterial(enemyMats[row]);
                 enemy.position = {
                     startX + col * ENEMY_SPACING_X,
                     startY - row * ENEMY_SPACING_Y,
                     0.0f
                 };
-                enemy.size = {0.8f, 0.6f};
+                enemy.size = {0.8f, 0.8f};
                 enemy.updateMeshPosition();
                 game.addMesh(enemy.mesh);
                 state.enemies.push_back(std::move(enemy));
@@ -107,18 +149,37 @@ int main() {
 
         auto spawnProjectile = [&](const glm::vec3& pos) {
             Projectile proj;
-            proj.mesh = game.createQuad(0.1f, 0.3f);
+            proj.mesh = game.createQuad(0.15f, 0.3f);
             proj.mesh->setMaterial(projectileMat);
             proj.position = pos;
-            proj.size = {0.1f, 0.3f};
+            proj.size = {0.15f, 0.3f};
             proj.updateMeshPosition();
             game.addMesh(proj.mesh);
+
+            proj.glowMesh = game.createQuad(1.5f, 1.5f);
+            proj.glowMesh->setMaterial(glowMat);
+            proj.glowMesh->setPosition(pos);
+            game.addMesh(proj.glowMesh);
+
+            auto* lighting = game.getLighting();
+            if (lighting) {
+                proj.lightIndex = lighting->addPointLight(pos, {1.0f, 0.9f, 0.3f}, 2.0f, 3.0f);
+            }
+
             state.projectiles.push_back(std::move(proj));
         };
 
-        spdlog::info("Game started! Use LEFT/RIGHT or A/D to move, SPACE to shoot.");
+        spdlog::info("=============================");
+        spdlog::info("     SPACE INVADERS 2D");
+        spdlog::info("=============================");
+        spdlog::info("Controls: LEFT/RIGHT or A/D to move");
+        spdlog::info("          SPACE to shoot");
+        spdlog::info("Scoring: Top row = 40 pts, Bottom = 10 pts");
+        spdlog::info("=============================");
 
         game.onUpdate([&](float dt) {
+            state.time += dt;
+
             if (state.gameOver) return;
 
             float moveX = 0.0f;
@@ -137,19 +198,31 @@ int main() {
             state.player.shootCooldown -= dt;
             if (game.isKeyPressed(SDL_SCANCODE_SPACE) && state.player.shootCooldown <= 0.0f) {
                 glm::vec3 spawnPos = state.player.position;
-                spawnPos.y += state.player.size.y / 2.0f + 0.2f;
+                spawnPos.y += state.player.size.y / 2.0f + 0.3f;
                 spawnProjectile(spawnPos);
                 state.player.shootCooldown = SHOOT_COOLDOWN;
             }
 
+            auto* lighting = game.getLighting();
             for (auto& proj : state.projectiles) {
                 if (!proj.active) continue;
                 proj.position.y += proj.velocity * dt;
                 proj.updateMeshPosition();
 
+                if (proj.glowMesh) {
+                    proj.glowMesh->setPosition(proj.position);
+                    float glowPulse = 1.0f + std::sin(state.time * 15.0f) * 0.15f;
+                    proj.glowMesh->setScale({glowPulse, glowPulse, 1.0f});
+                }
+
+                if (lighting && proj.lightIndex >= 0) {
+                    lighting->updatePointLight(proj.lightIndex, proj.position);
+                }
+
                 if (proj.position.y > WORLD_HEIGHT / 2.0f + 1.0f) {
                     proj.active = false;
                     game.removeMesh(proj.mesh);
+                    if (proj.glowMesh) game.removeMesh(proj.glowMesh);
                 }
             }
 
@@ -164,20 +237,25 @@ int main() {
                 if (enemy.position.x > maxX) maxX = enemy.position.x;
                 if (enemy.position.x < minX) minX = enemy.position.x;
 
-                enemy.updateMeshPosition();
+                float wobble = std::sin(state.time * 4.0f + enemy.position.x * 0.5f) * 0.1f;
+                enemy.mesh->setPosition({enemy.position.x, enemy.position.y + wobble, enemy.position.z});
             }
 
-            float bound = WORLD_WIDTH / 2.0f - 1.0f;
-            if (maxX > bound || minX < -bound) {
+            float bound = WORLD_WIDTH / 2.0f - 1.2f;
+            if ((maxX > bound || minX < -bound) && activeCount > 0) {
                 state.enemyDirection *= -1.0f;
                 for (auto& enemy : state.enemies) {
                     if (enemy.active) {
+                        if (enemy.position.x > bound) enemy.position.x = bound;
+                        if (enemy.position.x < -bound) enemy.position.x = -bound;
                         enemy.position.y -= ENEMY_DROP;
-                        enemy.updateMeshPosition();
 
                         if (enemy.position.y < -WORLD_HEIGHT / 2.0f + 2.0f) {
                             state.gameOver = true;
-                            spdlog::info("GAME OVER! Final Score: {}", state.score);
+                            spdlog::info("=============================");
+                            spdlog::info("       GAME OVER!");
+                            spdlog::info("   Final Score: {}", state.score);
+                            spdlog::info("=============================");
                             return;
                         }
                     }
@@ -194,24 +272,28 @@ int main() {
                         proj.active = false;
                         enemy.active = false;
                         game.removeMesh(proj.mesh);
+                        if (proj.glowMesh) game.removeMesh(proj.glowMesh);
                         game.removeMesh(enemy.mesh);
-                        state.score += 10;
-                        spdlog::info("Hit! Score: {}", state.score);
+
+                        int points = (ENEMY_ROWS - enemy.row) * 10;
+                        state.score += points;
+                        spdlog::info("HIT! +{} pts | Total: {}", points, state.score);
                         break;
                     }
                 }
             }
 
-            if (activeCount == 0 || (activeCount == 1 && state.enemies.back().active == false)) {
-                bool anyActive = false;
-                for (const auto& e : state.enemies) {
-                    if (e.active) { anyActive = true; break; }
-                }
-                if (!anyActive) {
-                    state.gameOver = true;
-                    state.victory = true;
-                    spdlog::info("YOU WIN! Final Score: {}", state.score);
-                }
+            bool anyActive = false;
+            for (const auto& e : state.enemies) {
+                if (e.active) { anyActive = true; break; }
+            }
+            if (!anyActive) {
+                state.gameOver = true;
+                state.victory = true;
+                spdlog::info("=============================");
+                spdlog::info("       VICTORY!");
+                spdlog::info("   Final Score: {}", state.score);
+                spdlog::info("=============================");
             }
         });
 

@@ -110,7 +110,7 @@ namespace game_engine::graphics {
         data.vertices.push_back({ hw,  hh, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f});
         data.vertices.push_back({-hw,  hh, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f});
 
-        data.indices = {0, 1, 2, 0, 2, 3};
+        data.indices = {0, 2, 1, 0, 3, 2};
 
         return data;
     }

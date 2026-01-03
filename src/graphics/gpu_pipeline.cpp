@@ -123,6 +123,16 @@ namespace game_engine::graphics {
             depthStencilState.format = WGPUTextureFormat_Depth24Plus;
             depthStencilState.depthWriteEnabled = true;
             depthStencilState.depthCompare = WGPUCompareFunction_Less;
+            depthStencilState.stencilReadMask = 0;
+            depthStencilState.stencilWriteMask = 0;
+            depthStencilState.stencilFront.compare = WGPUCompareFunction_Always;
+            depthStencilState.stencilFront.failOp = WGPUStencilOperation_Keep;
+            depthStencilState.stencilFront.depthFailOp = WGPUStencilOperation_Keep;
+            depthStencilState.stencilFront.passOp = WGPUStencilOperation_Keep;
+            depthStencilState.stencilBack.compare = WGPUCompareFunction_Always;
+            depthStencilState.stencilBack.failOp = WGPUStencilOperation_Keep;
+            depthStencilState.stencilBack.depthFailOp = WGPUStencilOperation_Keep;
+            depthStencilState.stencilBack.passOp = WGPUStencilOperation_Keep;
         }
 
         WGPURenderPipelineDescriptor pipelineDesc = {};

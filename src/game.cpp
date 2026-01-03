@@ -12,6 +12,7 @@
 #include <game_engine/graphics/glass_material.hpp>
 #include <game_engine/graphics/lighting.hpp>
 #include <game_engine/graphics/primitives.hpp>
+#include <game_engine/graphics/texture_loader.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <spdlog/spdlog.h>
 #include <SDL3/SDL.h>
@@ -35,6 +36,7 @@ namespace game_engine {
         std::vector<std::unique_ptr<graphics::Material>> ownedMaterials;
         std::vector<std::unique_ptr<graphics::PBRMaterial>> ownedPBRMaterials;
         std::vector<std::unique_ptr<graphics::GlassMaterial>> ownedGlassMaterials;
+        std::vector<std::unique_ptr<graphics::GPUTexture>> ownedTextures;
         std::unique_ptr<graphics::LightingManager> lighting;
 
         glm::vec3 cameraPosition{0.0f, 0.0f, 5.0f};
@@ -183,6 +185,13 @@ namespace game_engine {
 
     graphics::Material* Game::createMaterial() {
         auto material = graphics::Material::createUnlit(glm::vec4(1.0f));
+
+        if (m_pImpl->initialized && m_pImpl->renderer) {
+            auto* shaderRegistry = m_pImpl->renderer->getShaderRegistry();
+            auto layout = shaderRegistry->getMaterialBindGroupLayout(material->getShader());
+            material->createGPUResources(m_pImpl->renderer->getDevice(), layout);
+        }
+
         auto* ptr = material.get();
         m_pImpl->ownedMaterials.push_back(std::move(material));
         return ptr;
@@ -190,6 +199,13 @@ namespace game_engine {
 
     graphics::Material* Game::createUnlitMaterial(const glm::vec4& color) {
         auto material = graphics::Material::createUnlit(color);
+
+        if (m_pImpl->initialized && m_pImpl->renderer) {
+            auto* shaderRegistry = m_pImpl->renderer->getShaderRegistry();
+            auto layout = shaderRegistry->getMaterialBindGroupLayout(material->getShader());
+            material->createGPUResources(m_pImpl->renderer->getDevice(), layout);
+        }
+
         auto* ptr = material.get();
         m_pImpl->ownedMaterials.push_back(std::move(material));
         return ptr;
@@ -197,6 +213,27 @@ namespace game_engine {
 
     graphics::Material* Game::createSpriteMaterial(graphics::GPUTexture* texture, const glm::vec4& tint) {
         auto material = graphics::Material::createSprite(texture, tint);
+
+        if (m_pImpl->initialized && m_pImpl->renderer) {
+            auto* shaderRegistry = m_pImpl->renderer->getShaderRegistry();
+            auto layout = shaderRegistry->getMaterialBindGroupLayout(material->getShader());
+            material->createGPUResources(m_pImpl->renderer->getDevice(), layout);
+        }
+
+        auto* ptr = material.get();
+        m_pImpl->ownedMaterials.push_back(std::move(material));
+        return ptr;
+    }
+
+    graphics::Material* Game::createGlowMaterial(const glm::vec4& color) {
+        auto material = graphics::Material::createGlow(color);
+
+        if (m_pImpl->initialized && m_pImpl->renderer) {
+            auto* shaderRegistry = m_pImpl->renderer->getShaderRegistry();
+            auto layout = shaderRegistry->getMaterialBindGroupLayout(material->getShader());
+            material->createGPUResources(m_pImpl->renderer->getDevice(), layout);
+        }
+
         auto* ptr = material.get();
         m_pImpl->ownedMaterials.push_back(std::move(material));
         return ptr;
@@ -213,6 +250,23 @@ namespace game_engine {
         auto material = std::make_unique<graphics::GlassMaterial>();
         auto* ptr = material.get();
         m_pImpl->ownedGlassMaterials.push_back(std::move(material));
+        return ptr;
+    }
+
+    graphics::GPUTexture* Game::loadTexture(const std::string& path) {
+        if (!m_pImpl->initialized || !m_pImpl->renderer) {
+            spdlog::error("Cannot load texture before game is initialized");
+            return nullptr;
+        }
+
+        auto texture = graphics::TextureLoader::load(m_pImpl->renderer->getDevice(), path);
+        if (!texture) {
+            spdlog::error("Failed to load texture: {}", path);
+            return nullptr;
+        }
+
+        auto* ptr = texture.get();
+        m_pImpl->ownedTextures.push_back(std::move(texture));
         return ptr;
     }
 

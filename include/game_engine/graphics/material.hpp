@@ -34,6 +34,7 @@ namespace game_engine::graphics {
         static std::unique_ptr<Material> createUnlit(const glm::vec4& color);
         static std::unique_ptr<Material> createUnlitTextured(GPUTexture* texture, const glm::vec4& tint = glm::vec4(1.0f));
         static std::unique_ptr<Material> createSprite(GPUTexture* texture, const glm::vec4& tint = glm::vec4(1.0f));
+        static std::unique_ptr<Material> createGlow(const glm::vec4& color);
 
         void setColor(const glm::vec4& color);
         [[nodiscard]] glm::vec4 getColor() const;

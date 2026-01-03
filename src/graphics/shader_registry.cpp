@@ -104,6 +104,7 @@ namespace game_engine::graphics {
         config.fragmentShader.entryPoint = "main";
         config.vertexLayout = shaderDef.vertexLayout;
         config.enableBlending = true;
+        config.enableDepthTest = true;
 
         config.bindGroupLayouts = {
             m_pImpl->cameraBindGroupLayout,
