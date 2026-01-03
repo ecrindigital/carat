@@ -107,7 +107,7 @@ int main() {
         }
 
         auto* projectileMat = game.createUnlitMaterial({1.0f, 1.0f, 0.5f, 1.0f});
-        auto* glowMat = game.createGlowMaterial({1.0f, 0.9f, 0.3f, 1.0f});
+        auto* glowMat = game.createUnlitMaterial({1.0f, 0.8f, 0.2f, 0.4f});
 
         game.setAmbientLight({0.1f, 0.1f, 0.15f}, 1.0f);
 
@@ -119,10 +119,10 @@ int main() {
 
         GameState state;
 
-        state.player.mesh = game.createQuad(1.2f, 1.2f);
+        state.player.mesh = game.createQuad(0.8f, 0.8f);
         state.player.mesh->setMaterial(playerMat);
-        state.player.position = {0.0f, -WORLD_HEIGHT / 2.0f + 1.5f, 0.0f};
-        state.player.size = {1.0f, 1.0f};
+        state.player.position = {0.0f, -WORLD_HEIGHT / 2.0f + 1.0f, 0.0f};
+        state.player.size = {0.7f, 0.7f};
         state.player.updateMeshPosition();
         game.addMesh(state.player.mesh);
 
@@ -133,14 +133,14 @@ int main() {
             for (int col = 0; col < ENEMY_COLS; ++col) {
                 Enemy enemy;
                 enemy.row = row;
-                enemy.mesh = game.createQuad(1.0f, 1.0f);
+                enemy.mesh = game.createQuad(0.6f, 0.6f);
                 enemy.mesh->setMaterial(enemyMats[row]);
                 enemy.position = {
                     startX + col * ENEMY_SPACING_X,
                     startY - row * ENEMY_SPACING_Y,
                     0.0f
                 };
-                enemy.size = {0.8f, 0.8f};
+                enemy.size = {0.5f, 0.5f};
                 enemy.updateMeshPosition();
                 game.addMesh(enemy.mesh);
                 state.enemies.push_back(std::move(enemy));
@@ -149,21 +149,21 @@ int main() {
 
         auto spawnProjectile = [&](const glm::vec3& pos) {
             Projectile proj;
-            proj.mesh = game.createQuad(0.15f, 0.3f);
+            proj.mesh = game.createQuad(0.1f, 0.2f);
             proj.mesh->setMaterial(projectileMat);
             proj.position = pos;
-            proj.size = {0.15f, 0.3f};
+            proj.size = {0.1f, 0.2f};
             proj.updateMeshPosition();
             game.addMesh(proj.mesh);
 
-            proj.glowMesh = game.createQuad(1.5f, 1.5f);
+            proj.glowMesh = game.createQuad(0.8f, 0.8f);
             proj.glowMesh->setMaterial(glowMat);
             proj.glowMesh->setPosition(pos);
             game.addMesh(proj.glowMesh);
 
             auto* lighting = game.getLighting();
             if (lighting) {
-                proj.lightIndex = lighting->addPointLight(pos, {1.0f, 0.9f, 0.3f}, 2.0f, 3.0f);
+                proj.lightIndex = lighting->addPointLight(pos, {1.0f, 0.9f, 0.3f}, 1.5f, 2.5f);
             }
 
             state.projectiles.push_back(std::move(proj));
