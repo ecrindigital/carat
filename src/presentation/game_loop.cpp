@@ -90,12 +90,7 @@ namespace game_engine::presentation {
 
     void GameLoop::update(float deltaTime) {
         AXOLOTL_ZONE_NAMED("Update");
-
-        m_scheduler.clear();
-        m_scheduler.addSystem("MovementSystem", [this, deltaTime]() {
-            domain::systems::MovementSystem::update(*m_ecs, deltaTime);
-        });
-        m_scheduler.execute();
+        (void)deltaTime;
     }
 
     void GameLoop::render() {

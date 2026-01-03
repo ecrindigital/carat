@@ -4,6 +4,7 @@
 #include <memory>
 #include <cstdint>
 #include <span>
+#include <array>
 
 typedef struct WGPUTextureImpl* WGPUTexture;
 typedef struct WGPUTextureViewImpl* WGPUTextureView;
@@ -31,8 +32,12 @@ namespace game_engine::graphics {
 
         [[nodiscard]] core::Result initialize(GPUDevice* device, const TextureConfig& config);
         [[nodiscard]] core::Result initializeFromData(GPUDevice* device, const uint8_t* data, uint32_t width, uint32_t height, uint32_t channels = 4);
+        [[nodiscard]] core::Result initializeFromHDRData(GPUDevice* device, const float* data, uint32_t width, uint32_t height);
+        [[nodiscard]] core::Result initializeCubemap(GPUDevice* device, const std::array<unsigned char*, 6>& faceData, uint32_t size);
         [[nodiscard]] core::Result initializeDefault(GPUDevice* device);
         void shutdown();
+
+        [[nodiscard]] bool isCubemap() const;
 
         [[nodiscard]] WGPUTexture getTexture() const;
         [[nodiscard]] WGPUTextureView getTextureView() const;

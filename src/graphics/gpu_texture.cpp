@@ -15,6 +15,7 @@ namespace game_engine::graphics {
         WGPUQueue queue = nullptr;
         uint32_t width = 0;
         uint32_t height = 0;
+        bool isCubemap = false;
     };
 
     GPUTexture::GPUTexture() : m_pImpl(std::make_unique<Impl>()) {}
@@ -115,10 +116,169 @@ namespace game_engine::graphics {
         return core::Result::Success;
     }
 
+    core::Result GPUTexture::initializeFromHDRData(GPUDevice* device, const float* data, uint32_t width, uint32_t height) {
+        m_pImpl->device = device->getDevice();
+        m_pImpl->queue = device->getQueue();
+        m_pImpl->width = width;
+        m_pImpl->height = height;
+
+        WGPUTextureDescriptor textureDesc = {};
+        textureDesc.label = "HDR Texture";
+        textureDesc.size.width = width;
+        textureDesc.size.height = height;
+        textureDesc.size.depthOrArrayLayers = 1;
+        textureDesc.mipLevelCount = 1;
+        textureDesc.sampleCount = 1;
+        textureDesc.dimension = WGPUTextureDimension_2D;
+        textureDesc.format = WGPUTextureFormat_RGBA32Float;
+        textureDesc.usage = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst;
+
+        m_pImpl->texture = wgpuDeviceCreateTexture(m_pImpl->device, &textureDesc);
+        if (!m_pImpl->texture) {
+            spdlog::error("Failed to create HDR texture");
+            return core::Result::Error;
+        }
+
+        WGPUTextureViewDescriptor viewDesc = {};
+        viewDesc.format = WGPUTextureFormat_RGBA32Float;
+        viewDesc.dimension = WGPUTextureViewDimension_2D;
+        viewDesc.baseMipLevel = 0;
+        viewDesc.mipLevelCount = 1;
+        viewDesc.baseArrayLayer = 0;
+        viewDesc.arrayLayerCount = 1;
+        viewDesc.aspect = WGPUTextureAspect_All;
+
+        m_pImpl->textureView = wgpuTextureCreateView(m_pImpl->texture, &viewDesc);
+        if (!m_pImpl->textureView) {
+            spdlog::error("Failed to create HDR texture view");
+            return core::Result::Error;
+        }
+
+        WGPUSamplerDescriptor samplerDesc = {};
+        samplerDesc.addressModeU = WGPUAddressMode_ClampToEdge;
+        samplerDesc.addressModeV = WGPUAddressMode_ClampToEdge;
+        samplerDesc.addressModeW = WGPUAddressMode_ClampToEdge;
+        samplerDesc.magFilter = WGPUFilterMode_Linear;
+        samplerDesc.minFilter = WGPUFilterMode_Linear;
+        samplerDesc.mipmapFilter = WGPUMipmapFilterMode_Linear;
+        samplerDesc.lodMinClamp = 0.0f;
+        samplerDesc.lodMaxClamp = 1.0f;
+        samplerDesc.maxAnisotropy = 1;
+
+        m_pImpl->sampler = wgpuDeviceCreateSampler(m_pImpl->device, &samplerDesc);
+        if (!m_pImpl->sampler) {
+            spdlog::error("Failed to create HDR sampler");
+            return core::Result::Error;
+        }
+
+        WGPUImageCopyTexture destination = {};
+        destination.texture = m_pImpl->texture;
+        destination.mipLevel = 0;
+        destination.origin = {0, 0, 0};
+        destination.aspect = WGPUTextureAspect_All;
+
+        WGPUTextureDataLayout source = {};
+        source.offset = 0;
+        source.bytesPerRow = width * 4 * sizeof(float);
+        source.rowsPerImage = height;
+
+        WGPUExtent3D writeSize = {};
+        writeSize.width = width;
+        writeSize.height = height;
+        writeSize.depthOrArrayLayers = 1;
+
+        wgpuQueueWriteTexture(m_pImpl->queue, &destination, data, width * height * 4 * sizeof(float), &source, &writeSize);
+
+        spdlog::info("HDR Texture created ({}x{})", width, height);
+        return core::Result::Success;
+    }
+
+    core::Result GPUTexture::initializeCubemap(GPUDevice* device, const std::array<unsigned char*, 6>& faceData, uint32_t size) {
+        m_pImpl->device = device->getDevice();
+        m_pImpl->queue = device->getQueue();
+        m_pImpl->width = size;
+        m_pImpl->height = size;
+        m_pImpl->isCubemap = true;
+
+        WGPUTextureDescriptor textureDesc = {};
+        textureDesc.label = "Cubemap";
+        textureDesc.size.width = size;
+        textureDesc.size.height = size;
+        textureDesc.size.depthOrArrayLayers = 6;
+        textureDesc.mipLevelCount = 1;
+        textureDesc.sampleCount = 1;
+        textureDesc.dimension = WGPUTextureDimension_2D;
+        textureDesc.format = WGPUTextureFormat_RGBA8Unorm;
+        textureDesc.usage = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst;
+
+        m_pImpl->texture = wgpuDeviceCreateTexture(m_pImpl->device, &textureDesc);
+        if (!m_pImpl->texture) {
+            spdlog::error("Failed to create cubemap texture");
+            return core::Result::Error;
+        }
+
+        for (uint32_t face = 0; face < 6; ++face) {
+            WGPUImageCopyTexture destination = {};
+            destination.texture = m_pImpl->texture;
+            destination.mipLevel = 0;
+            destination.origin = {0, 0, face};
+            destination.aspect = WGPUTextureAspect_All;
+
+            WGPUTextureDataLayout source = {};
+            source.offset = 0;
+            source.bytesPerRow = size * 4;
+            source.rowsPerImage = size;
+
+            WGPUExtent3D writeSize = {};
+            writeSize.width = size;
+            writeSize.height = size;
+            writeSize.depthOrArrayLayers = 1;
+
+            wgpuQueueWriteTexture(m_pImpl->queue, &destination, faceData[face], size * size * 4, &source, &writeSize);
+        }
+
+        WGPUTextureViewDescriptor viewDesc = {};
+        viewDesc.format = WGPUTextureFormat_RGBA8Unorm;
+        viewDesc.dimension = WGPUTextureViewDimension_Cube;
+        viewDesc.baseMipLevel = 0;
+        viewDesc.mipLevelCount = 1;
+        viewDesc.baseArrayLayer = 0;
+        viewDesc.arrayLayerCount = 6;
+        viewDesc.aspect = WGPUTextureAspect_All;
+
+        m_pImpl->textureView = wgpuTextureCreateView(m_pImpl->texture, &viewDesc);
+        if (!m_pImpl->textureView) {
+            spdlog::error("Failed to create cubemap texture view");
+            return core::Result::Error;
+        }
+
+        WGPUSamplerDescriptor samplerDesc = {};
+        samplerDesc.addressModeU = WGPUAddressMode_ClampToEdge;
+        samplerDesc.addressModeV = WGPUAddressMode_ClampToEdge;
+        samplerDesc.addressModeW = WGPUAddressMode_ClampToEdge;
+        samplerDesc.magFilter = WGPUFilterMode_Linear;
+        samplerDesc.minFilter = WGPUFilterMode_Linear;
+        samplerDesc.mipmapFilter = WGPUMipmapFilterMode_Linear;
+        samplerDesc.lodMinClamp = 0.0f;
+        samplerDesc.lodMaxClamp = 1.0f;
+        samplerDesc.maxAnisotropy = 1;
+
+        m_pImpl->sampler = wgpuDeviceCreateSampler(m_pImpl->device, &samplerDesc);
+        if (!m_pImpl->sampler) {
+            spdlog::error("Failed to create cubemap sampler");
+            return core::Result::Error;
+        }
+
+        spdlog::info("Cubemap created ({}x{})", size, size);
+        return core::Result::Success;
+    }
+
     core::Result GPUTexture::initializeDefault(GPUDevice* device) {
         std::array<uint8_t, 4> whitePixel = {255, 255, 255, 255};
         return initializeFromData(device, whitePixel.data(), 1, 1, 4);
     }
+
+    bool GPUTexture::isCubemap() const { return m_pImpl->isCubemap; }
 
     void GPUTexture::shutdown() {
         if (m_pImpl->sampler) {

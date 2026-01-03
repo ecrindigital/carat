@@ -11,7 +11,8 @@ namespace game_engine::graphics {
         UnlitTextured,
         Sprite,
         Lit,
-        PBR
+        PBR,
+        Glass
     };
 
     struct ShaderDefinition {
