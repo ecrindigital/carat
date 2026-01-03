@@ -11,6 +11,7 @@
 namespace game_engine::graphics {
 
     class GPUBuffer;
+    class GPUBindGroup;
     class GPUDevice;
     class GPUTexture;
     class Material;
@@ -52,8 +53,9 @@ namespace game_engine::graphics {
 
         [[nodiscard]] glm::mat4 getModelMatrix() const;
 
-        [[nodiscard]] core::Result createGPUResources(GPUDevice* device);
+        [[nodiscard]] core::Result createGPUResources(GPUDevice* device, void* modelBindGroupLayout);
         [[nodiscard]] GPUBuffer* getVertexBuffer() const;
+        [[nodiscard]] GPUBindGroup* getModelBindGroup() const;
         [[nodiscard]] GPUBuffer* getIndexBuffer() const;
         [[nodiscard]] uint32_t getVertexCount() const;
         [[nodiscard]] uint32_t getIndexCount() const;

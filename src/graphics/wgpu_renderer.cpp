@@ -256,6 +256,10 @@ fn main() -> @location(0) vec4<f32> {
             wgpuRenderPassEncoderSetPipeline(renderPass, pipeline->getPipeline());
             wgpuRenderPassEncoderSetBindGroup(renderPass, 0, m_cameraBindGroup->getBindGroup(), 0, nullptr);
 
+            if (mesh->getModelBindGroup()) {
+                wgpuRenderPassEncoderSetBindGroup(renderPass, 1, mesh->getModelBindGroup()->getBindGroup(), 0, nullptr);
+            }
+
             if (material->getBindGroup()) {
                 wgpuRenderPassEncoderSetBindGroup(renderPass, 2, material->getBindGroup()->getBindGroup(), 0, nullptr);
             }

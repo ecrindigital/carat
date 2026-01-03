@@ -1,6 +1,7 @@
 #include <game_engine/graphics/mesh.hpp>
 #include <game_engine/graphics/gpu_device.hpp>
 #include <game_engine/graphics/gpu_buffer.hpp>
+#include <game_engine/graphics/gpu_bind_group.hpp>
 #include <game_engine/graphics/gpu_texture.hpp>
 #include <game_engine/graphics/material.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -24,6 +25,7 @@ namespace game_engine::graphics {
         std::unique_ptr<GPUBuffer> vertexBuffer;
         std::unique_ptr<GPUBuffer> indexBuffer;
         std::unique_ptr<GPUBuffer> modelUniformBuffer;
+        std::unique_ptr<GPUBindGroup> modelBindGroup;
 
         Material* material = nullptr;
         std::unique_ptr<Material> ownedMaterial;
@@ -166,7 +168,7 @@ namespace game_engine::graphics {
         return m_pImpl->modelData.model;
     }
 
-    core::Result Mesh::createGPUResources(GPUDevice* device) {
+    core::Result Mesh::createGPUResources(GPUDevice* device, void* modelBindGroupLayout) {
         if (m_pImpl->vertexData.empty()) {
             spdlog::error("No vertex data to upload");
             return core::Result::Error;
@@ -196,6 +198,24 @@ namespace game_engine::graphics {
 
         m_pImpl->updateModelMatrix();
         m_pImpl->modelUniformBuffer->write(&m_pImpl->modelData, sizeof(ModelData));
+
+        if (modelBindGroupLayout) {
+            m_pImpl->modelBindGroup = std::make_unique<GPUBindGroup>();
+
+            std::vector<BindGroupEntry> entries;
+            BindGroupEntry entry{};
+            entry.binding = 0;
+            entry.type = BindingType::UniformBuffer;
+            entry.buffer = m_pImpl->modelUniformBuffer.get();
+            entry.offset = 0;
+            entry.size = sizeof(ModelData);
+            entries.push_back(entry);
+
+            if (m_pImpl->modelBindGroup->initialize(device, static_cast<WGPUBindGroupLayout>(modelBindGroupLayout), entries) != core::Result::Success) {
+                spdlog::error("Failed to create model bind group");
+                return core::Result::Error;
+            }
+        }
 
         return core::Result::Success;
     }
@@ -230,6 +250,10 @@ namespace game_engine::graphics {
 
     GPUBuffer* Mesh::getModelUniformBuffer() const {
         return m_pImpl->modelUniformBuffer.get();
+    }
+
+    GPUBindGroup* Mesh::getModelBindGroup() const {
+        return m_pImpl->modelBindGroup.get();
     }
 
     void Mesh::updateModelUniformBuffer() {

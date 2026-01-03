@@ -123,7 +123,8 @@ namespace game_engine {
         mesh->setIndices(std::span<const uint32_t>(data.indices));
 
         if (m_pImpl->initialized && m_pImpl->renderer) {
-            mesh->createGPUResources(m_pImpl->renderer->getDevice());
+            auto* shaderRegistry = m_pImpl->renderer->getShaderRegistry();
+            mesh->createGPUResources(m_pImpl->renderer->getDevice(), shaderRegistry->getModelBindGroupLayout());
         }
 
         auto* ptr = mesh.get();
@@ -138,7 +139,8 @@ namespace game_engine {
         mesh->setIndices(std::span<const uint32_t>(data.indices));
 
         if (m_pImpl->initialized && m_pImpl->renderer) {
-            mesh->createGPUResources(m_pImpl->renderer->getDevice());
+            auto* shaderRegistry = m_pImpl->renderer->getShaderRegistry();
+            mesh->createGPUResources(m_pImpl->renderer->getDevice(), shaderRegistry->getModelBindGroupLayout());
         }
 
         auto* ptr = mesh.get();
@@ -153,7 +155,8 @@ namespace game_engine {
         mesh->setIndices(std::span<const uint32_t>(data.indices));
 
         if (m_pImpl->initialized && m_pImpl->renderer) {
-            mesh->createGPUResources(m_pImpl->renderer->getDevice());
+            auto* shaderRegistry = m_pImpl->renderer->getShaderRegistry();
+            mesh->createGPUResources(m_pImpl->renderer->getDevice(), shaderRegistry->getModelBindGroupLayout());
         }
 
         auto* ptr = mesh.get();
@@ -306,8 +309,12 @@ namespace game_engine {
             m_pImpl->container, m_pImpl->scheduler
         );
 
+        auto* shaderRegistry = m_pImpl->renderer->getShaderRegistry();
+        auto modelLayout = shaderRegistry->getModelBindGroupLayout();
+
         for (auto& mesh : m_pImpl->ownedMeshes) {
-            mesh->createGPUResources(m_pImpl->renderer->getDevice());
+            mesh->createGPUResources(m_pImpl->renderer->getDevice(), modelLayout);
+            m_pImpl->renderer->addMesh(mesh.get());
         }
 
         for (auto& material : m_pImpl->ownedMaterials) {
