@@ -52,9 +52,11 @@ namespace game_engine {
         graphics::Mesh* createCube(float size = 1.0f);
         graphics::Mesh* createSphere(float radius = 0.5f, int segments = 32);
         graphics::Mesh* createPlane(float width = 1.0f, float height = 1.0f);
+        graphics::Mesh* createQuad(float width = 1.0f, float height = 1.0f);
 
         graphics::Material* createMaterial();
         graphics::Material* createUnlitMaterial(const glm::vec4& color);
+        graphics::Material* createSpriteMaterial(graphics::GPUTexture* texture, const glm::vec4& tint = glm::vec4(1.0f));
         graphics::PBRMaterial* createPBRMaterial();
         graphics::GlassMaterial* createGlassMaterial();
 
@@ -79,6 +81,8 @@ namespace game_engine {
         infrastructure::EcsManager& ecs();
         graphics::WGPURenderer* getRenderer();
         graphics::LightingManager* getLighting();
+
+        [[nodiscard]] bool isKeyPressed(int scancode) const;
 
         core::Result initialize();
         void run();

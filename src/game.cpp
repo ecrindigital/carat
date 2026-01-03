@@ -14,6 +14,7 @@
 #include <game_engine/graphics/primitives.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <spdlog/spdlog.h>
+#include <SDL3/SDL.h>
 #include <vector>
 
 namespace game_engine {
@@ -164,6 +165,22 @@ namespace game_engine {
         return ptr;
     }
 
+    graphics::Mesh* Game::createQuad(float width, float height) {
+        auto data = graphics::generateQuad(width, height);
+        auto mesh = std::make_unique<graphics::Mesh>();
+        mesh->setVertices(std::span<const graphics::VertexPositionNormalUV>(data.vertices));
+        mesh->setIndices(std::span<const uint32_t>(data.indices));
+
+        if (m_pImpl->initialized && m_pImpl->renderer) {
+            auto* shaderRegistry = m_pImpl->renderer->getShaderRegistry();
+            mesh->createGPUResources(m_pImpl->renderer->getDevice(), shaderRegistry->getModelBindGroupLayout());
+        }
+
+        auto* ptr = mesh.get();
+        m_pImpl->ownedMeshes.push_back(std::move(mesh));
+        return ptr;
+    }
+
     graphics::Material* Game::createMaterial() {
         auto material = graphics::Material::createUnlit(glm::vec4(1.0f));
         auto* ptr = material.get();
@@ -173,6 +190,13 @@ namespace game_engine {
 
     graphics::Material* Game::createUnlitMaterial(const glm::vec4& color) {
         auto material = graphics::Material::createUnlit(color);
+        auto* ptr = material.get();
+        m_pImpl->ownedMaterials.push_back(std::move(material));
+        return ptr;
+    }
+
+    graphics::Material* Game::createSpriteMaterial(graphics::GPUTexture* texture, const glm::vec4& tint) {
+        auto material = graphics::Material::createSprite(texture, tint);
         auto* ptr = material.get();
         m_pImpl->ownedMaterials.push_back(std::move(material));
         return ptr;
@@ -270,6 +294,11 @@ namespace game_engine {
 
     graphics::LightingManager* Game::getLighting() {
         return m_pImpl->lighting.get();
+    }
+
+    bool Game::isKeyPressed(int scancode) const {
+        const bool* keyState = SDL_GetKeyboardState(nullptr);
+        return keyState && keyState[scancode];
     }
 
     void Game::onUpdate(UpdateCallback callback) {

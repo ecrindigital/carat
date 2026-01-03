@@ -79,6 +79,22 @@ target("glass_sphere_example")
         add_defines("USE_WEBGPU")
     end
 
+target("playground_example")
+    set_kind("binary")
+    add_deps("game_engine")
+    add_files("examples/playground/main.cpp")
+    add_packages("glfw", "glad", "glm", "spdlog", "entt", "taskflow", "imgui", "wgpu", "stb")
+    add_links("SDL3")
+    add_linkdirs("/opt/homebrew/lib")
+    add_rpathdirs("/opt/homebrew/lib")
+    if has_config("enable_profiling") then
+        add_packages("tracy")
+        add_defines("TRACY_ENABLE")
+    end
+    if has_config("use_webgpu") then
+        add_defines("USE_WEBGPU")
+    end
+
 target("tests")
     set_kind("binary")
     add_deps("game_engine")
