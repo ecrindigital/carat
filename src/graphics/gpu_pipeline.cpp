@@ -5,9 +5,21 @@
 
 namespace game_engine::graphics {
 
+    namespace {
+        WGPUVertexFormat toWGPUFormat(VertexFormat format) {
+            switch (format) {
+                case VertexFormat::Float32x2: return WGPUVertexFormat_Float32x2;
+                case VertexFormat::Float32x3: return WGPUVertexFormat_Float32x3;
+                case VertexFormat::Float32x4: return WGPUVertexFormat_Float32x4;
+                default: return WGPUVertexFormat_Float32x3;
+            }
+        }
+    }
+
     class GPUPipeline::Impl {
     public:
         WGPURenderPipeline pipeline = nullptr;
+        WGPUPipelineLayout pipelineLayout = nullptr;
         WGPUShaderModule vertexShader = nullptr;
         WGPUShaderModule fragmentShader = nullptr;
         WGPUDevice device = nullptr;
@@ -45,28 +57,59 @@ namespace game_engine::graphics {
             return core::Result::Error;
         }
 
-        WGPUVertexAttribute vertexAttrib = {};
-        vertexAttrib.format = WGPUVertexFormat_Float32x3;
-        vertexAttrib.offset = 0;
-        vertexAttrib.shaderLocation = 0;
+        std::vector<WGPUVertexAttribute> vertexAttribs;
+        uint32_t stride = 3 * sizeof(float);
+
+        if (config.vertexLayout.has_value()) {
+            VertexLayout layout = getVertexLayout(config.vertexLayout.value());
+            stride = layout.stride;
+
+            for (const auto& attr : layout.attributes) {
+                WGPUVertexAttribute wgpuAttr = {};
+                wgpuAttr.format = toWGPUFormat(attr.format);
+                wgpuAttr.offset = attr.offset;
+                wgpuAttr.shaderLocation = attr.location;
+                vertexAttribs.push_back(wgpuAttr);
+            }
+        } else {
+            WGPUVertexAttribute posAttr = {};
+            posAttr.format = WGPUVertexFormat_Float32x3;
+            posAttr.offset = 0;
+            posAttr.shaderLocation = 0;
+            vertexAttribs.push_back(posAttr);
+        }
 
         WGPUVertexBufferLayout vertexBufferLayout = {};
-        vertexBufferLayout.arrayStride = 3 * sizeof(float);
+        vertexBufferLayout.arrayStride = stride;
         vertexBufferLayout.stepMode = WGPUVertexStepMode_Vertex;
-        vertexBufferLayout.attributeCount = 1;
-        vertexBufferLayout.attributes = &vertexAttrib;
+        vertexBufferLayout.attributeCount = static_cast<uint32_t>(vertexAttribs.size());
+        vertexBufferLayout.attributes = vertexAttribs.data();
+
+        if (!config.bindGroupLayouts.empty()) {
+            WGPUPipelineLayoutDescriptor layoutDesc = {};
+            layoutDesc.bindGroupLayoutCount = static_cast<uint32_t>(config.bindGroupLayouts.size());
+            layoutDesc.bindGroupLayouts = config.bindGroupLayouts.data();
+
+            m_pImpl->pipelineLayout = wgpuDeviceCreatePipelineLayout(m_pImpl->device, &layoutDesc);
+            if (!m_pImpl->pipelineLayout) {
+                spdlog::error("Failed to create pipeline layout");
+                return core::Result::Error;
+            }
+        }
 
         WGPUBlendState blendState = {};
-        blendState.color.srcFactor = WGPUBlendFactor_SrcAlpha;
-        blendState.color.dstFactor = WGPUBlendFactor_OneMinusSrcAlpha;
-        blendState.color.operation = WGPUBlendOperation_Add;
-        blendState.alpha.srcFactor = WGPUBlendFactor_One;
-        blendState.alpha.dstFactor = WGPUBlendFactor_Zero;
-        blendState.alpha.operation = WGPUBlendOperation_Add;
+        if (config.enableBlending) {
+            blendState.color.srcFactor = WGPUBlendFactor_SrcAlpha;
+            blendState.color.dstFactor = WGPUBlendFactor_OneMinusSrcAlpha;
+            blendState.color.operation = WGPUBlendOperation_Add;
+            blendState.alpha.srcFactor = WGPUBlendFactor_One;
+            blendState.alpha.dstFactor = WGPUBlendFactor_Zero;
+            blendState.alpha.operation = WGPUBlendOperation_Add;
+        }
 
         WGPUColorTargetState colorTarget = {};
         colorTarget.format = WGPUTextureFormat_BGRA8Unorm;
-        colorTarget.blend = &blendState;
+        colorTarget.blend = config.enableBlending ? &blendState : nullptr;
         colorTarget.writeMask = WGPUColorWriteMask_All;
 
         WGPUFragmentState fragmentState = {};
@@ -75,8 +118,16 @@ namespace game_engine::graphics {
         fragmentState.targetCount = 1;
         fragmentState.targets = &colorTarget;
 
+        WGPUDepthStencilState depthStencilState = {};
+        if (config.enableDepthTest) {
+            depthStencilState.format = WGPUTextureFormat_Depth24Plus;
+            depthStencilState.depthWriteEnabled = true;
+            depthStencilState.depthCompare = WGPUCompareFunction_Less;
+        }
+
         WGPURenderPipelineDescriptor pipelineDesc = {};
-        pipelineDesc.label = "Triangle Pipeline";
+        pipelineDesc.label = "Render Pipeline";
+        pipelineDesc.layout = m_pImpl->pipelineLayout;
 
         pipelineDesc.vertex.module = m_pImpl->vertexShader;
         pipelineDesc.vertex.entryPoint = config.vertexShader.entryPoint.c_str();
@@ -87,6 +138,8 @@ namespace game_engine::graphics {
         pipelineDesc.primitive.stripIndexFormat = WGPUIndexFormat_Undefined;
         pipelineDesc.primitive.frontFace = WGPUFrontFace_CCW;
         pipelineDesc.primitive.cullMode = WGPUCullMode_None;
+
+        pipelineDesc.depthStencil = config.enableDepthTest ? &depthStencilState : nullptr;
 
         pipelineDesc.multisample.count = 1;
         pipelineDesc.multisample.mask = ~0u;
@@ -109,6 +162,10 @@ namespace game_engine::graphics {
             wgpuRenderPipelineRelease(m_pImpl->pipeline);
             m_pImpl->pipeline = nullptr;
         }
+        if (m_pImpl->pipelineLayout) {
+            wgpuPipelineLayoutRelease(m_pImpl->pipelineLayout);
+            m_pImpl->pipelineLayout = nullptr;
+        }
         if (m_pImpl->vertexShader) {
             wgpuShaderModuleRelease(m_pImpl->vertexShader);
             m_pImpl->vertexShader = nullptr;
@@ -120,5 +177,6 @@ namespace game_engine::graphics {
     }
 
     WGPURenderPipeline GPUPipeline::getPipeline() const { return m_pImpl->pipeline; }
+    WGPUPipelineLayout GPUPipeline::getPipelineLayout() const { return m_pImpl->pipelineLayout; }
 
-} // namespace game_engine::graphics
+}

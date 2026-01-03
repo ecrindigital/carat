@@ -1,11 +1,16 @@
 #pragma once
 
 #include <game_engine/core/types.hpp>
+#include <game_engine/graphics/vertex_layout.hpp>
 #include <memory>
 #include <string>
+#include <vector>
+#include <optional>
 
 typedef struct WGPURenderPipelineImpl* WGPURenderPipeline;
 typedef struct WGPUShaderModuleImpl* WGPUShaderModule;
+typedef struct WGPUBindGroupLayoutImpl* WGPUBindGroupLayout;
+typedef struct WGPUPipelineLayoutImpl* WGPUPipelineLayout;
 
 namespace game_engine::graphics {
 
@@ -19,6 +24,10 @@ namespace game_engine::graphics {
     struct PipelineConfig {
         ShaderSource vertexShader;
         ShaderSource fragmentShader;
+        std::optional<VertexLayoutType> vertexLayout;
+        std::vector<WGPUBindGroupLayout> bindGroupLayouts;
+        bool enableBlending = true;
+        bool enableDepthTest = false;
     };
 
     class GPUPipeline {
@@ -35,10 +44,11 @@ namespace game_engine::graphics {
         void shutdown();
 
         [[nodiscard]] WGPURenderPipeline getPipeline() const;
+        [[nodiscard]] WGPUPipelineLayout getPipelineLayout() const;
 
     private:
         class Impl;
         std::unique_ptr<Impl> m_pImpl;
     };
 
-} // namespace game_engine::graphics
+}
