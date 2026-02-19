@@ -1,8 +1,4 @@
 #include <game_engine/game.hpp>
-#include <game_engine/core/di_container.hpp>
-#include <game_engine/core/scheduler.hpp>
-#include <game_engine/core/system_registry.hpp>
-#include <game_engine/infrastructure/ecs_manager.hpp>
 #include <game_engine/infrastructure/window.hpp>
 #include <game_engine/graphics/wgpu_renderer.hpp>
 #include <game_engine/graphics/shader_registry.hpp>
@@ -14,6 +10,7 @@
 #include <game_engine/graphics/primitives.hpp>
 #include <game_engine/graphics/texture_loader.hpp>
 #include <game_engine/audio/audio_manager.hpp>
+#include <flecs.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <spdlog/spdlog.h>
 #include <SDL3/SDL.h>
@@ -25,11 +22,8 @@ namespace game_engine {
     public:
         GameConfig config;
 
-        core::DIContainer container;
-        core::Scheduler scheduler;
-        std::unique_ptr<core::SystemRegistry> systemRegistry;
+        flecs::world world;
 
-        std::shared_ptr<infrastructure::EcsManager> ecs;
         std::unique_ptr<infrastructure::Window> window;
         std::unique_ptr<graphics::WGPURenderer> renderer;
 
@@ -84,12 +78,7 @@ namespace game_engine {
         }
     };
 
-    Game::Game() : m_pImpl(std::make_unique<Impl>()) {
-        m_pImpl->ecs = std::make_shared<infrastructure::EcsManager>();
-        m_pImpl->container.registerSingleton<infrastructure::EcsManager>(
-            [this](core::DIContainer&) { return m_pImpl->ecs; }
-        );
-    }
+    Game::Game() : m_pImpl(std::make_unique<Impl>()) {}
 
     Game::Game(const std::string& title, int width, int height) : Game() {
         m_pImpl->config.title = title;
@@ -382,8 +371,8 @@ namespace game_engine {
         m_pImpl->updateCallback = std::move(callback);
     }
 
-    infrastructure::EcsManager& Game::ecs() {
-        return *m_pImpl->ecs;
+    flecs::world& Game::world() {
+        return m_pImpl->world;
     }
 
     graphics::WGPURenderer* Game::getRenderer() {
@@ -411,10 +400,6 @@ namespace game_engine {
             return core::Result::Error;
         }
 
-        m_pImpl->systemRegistry = std::make_unique<core::SystemRegistry>(
-            m_pImpl->container, m_pImpl->scheduler
-        );
-
         m_pImpl->audioManager = std::make_unique<audio::AudioManager>();
         if (m_pImpl->audioManager->initialize() != core::Result::Success) {
             spdlog::warn("Failed to initialize audio (continuing without audio)");
@@ -429,8 +414,8 @@ namespace game_engine {
         }
 
         for (auto& material : m_pImpl->ownedMaterials) {
-            auto* shaderRegistry = m_pImpl->renderer->getShaderRegistry();
-            auto layout = shaderRegistry->getMaterialBindGroupLayout(material->getShader());
+            auto* sr = m_pImpl->renderer->getShaderRegistry();
+            auto layout = sr->getMaterialBindGroupLayout(material->getShader());
             material->createGPUResources(m_pImpl->renderer->getDevice(), layout);
         }
 
@@ -458,9 +443,7 @@ namespace game_engine {
 
             m_pImpl->window->pollEvents();
 
-            if (m_pImpl->systemRegistry) {
-                m_pImpl->systemRegistry->execute(deltaTime);
-            }
+            m_pImpl->world.progress(deltaTime);
 
             if (m_pImpl->updateCallback) {
                 m_pImpl->updateCallback(deltaTime);

@@ -1,7 +1,7 @@
 #pragma once
 
 #include <game_engine/core/types.hpp>
-#include <game_engine/core/system.hpp>
+#include <flecs.h>
 #include <glm/glm.hpp>
 #include <memory>
 #include <string>
@@ -22,10 +22,6 @@ namespace game_engine {
     namespace audio {
         class AudioManager;
         class AudioClip;
-    }
-
-    namespace infrastructure {
-        class EcsManager;
     }
 
     struct GameConfig {
@@ -50,9 +46,6 @@ namespace game_engine {
         Game& setTitle(const std::string& title);
         Game& setSize(int width, int height);
         Game& setVSync(bool enabled);
-
-        template<typename T>
-        Game& addSystem();
 
         graphics::Mesh* createCube(float size = 1.0f);
         graphics::Mesh* createSphere(float radius = 0.5f, int segments = 32);
@@ -86,7 +79,7 @@ namespace game_engine {
         using UpdateCallback = std::function<void(float deltaTime)>;
         void onUpdate(UpdateCallback callback);
 
-        infrastructure::EcsManager& ecs();
+        flecs::world& world();
         graphics::WGPURenderer* getRenderer();
         graphics::LightingManager* getLighting();
         audio::AudioManager* getAudio();
@@ -103,15 +96,6 @@ namespace game_engine {
     private:
         class Impl;
         std::unique_ptr<Impl> m_pImpl;
-
-        template<typename T>
-        void registerSystemInternal();
     };
-
-    template<typename T>
-    Game& Game::addSystem() {
-        registerSystemInternal<T>();
-        return *this;
-    }
 
 }

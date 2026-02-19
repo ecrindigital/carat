@@ -1,14 +1,14 @@
 #pragma once
 
 #include <memory>
-#include <entt/entity/fwd.hpp>
+#include <flecs.h>
 
 namespace game_engine::core {
 
     template<typename T>
     using UniquePtr = std::unique_ptr<T>;
 
-    using Entity = entt::entity;
+    using Entity = flecs::entity;
 
     enum class Result {
         Success,

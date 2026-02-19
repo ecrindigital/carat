@@ -1,41 +1,41 @@
 #pragma once
-#include <entt/entity/registry.hpp>
+#include <flecs.h>
 
 namespace game_engine::infrastructure {
     class EcsManager {
     public:
         EcsManager() = default;
-
         ~EcsManager() = default;
 
-        entt::entity createEntity() {
-            return m_registry.create();
+        flecs::entity createEntity() {
+            return m_world.entity();
         }
 
-        void destroyEntity(const entt::entity &entity) {
-            m_registry.destroy(entity);
+        void destroyEntity(flecs::entity entity) {
+            entity.destruct();
         }
 
         template<typename T, typename... Args>
-        T &addComponent(entt::entity entity, Args &&... args) {
-            return m_registry.emplace<T>(entity, std::forward<Args>(args)...);
+        T& addComponent(flecs::entity entity, Args&&... args) {
+            entity.set(T{std::forward<Args>(args)...});
+            return *entity.get_mut<T>();
         }
 
         template<typename T>
-        void removeComponent(const entt::entity &entity) {
-            m_registry.remove<T>(entity);
+        void removeComponent(flecs::entity entity) {
+            entity.remove<T>();
         }
 
         template<typename T>
-        T &getComponent(const entt::entity &entity) {
-            return m_registry.get<T>(entity);
+        const T& getComponent(flecs::entity entity) {
+            return *entity.get<T>();
         }
 
-        entt::registry &getRegistry() {
-            return m_registry;
+        flecs::world& world() {
+            return m_world;
         }
 
     private:
-        entt::registry m_registry;
+        flecs::world m_world;
     };
 } // namespace game_engine::infrastructure
